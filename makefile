@@ -5,4 +5,4 @@ clean:
 	rm checkreg *.o *.hi
 
 test: all
-	pytest
+	python3 -m pytest
