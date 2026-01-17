@@ -116,10 +116,59 @@ import pytest
 		("(a+aaa)*+aa+(aa)*", True),
 		("(a+aaa)*+aa*", True),
 		("a + a + a +       aaa + a    a a a ", False),
-		("aaaaa                             a+a\n+a*", True)
+		("aaaaa                             a+a\n+a*", True),
+
+
+
+		("0", False),
+		("0aaa", False),
+		("0a*", False),
+		("0*", False),
+
+		("a0a", False),
+		("a*0", False),
+		("a+a+0", False),
+		("a(0+a+aa+aaa)", False),
+		("0 + e+a", False),
+		("0+e+aa*", True),
+
+		("0e", False),
+		("e0", False),
+		("0e0", False),
+		("a* + 0", True),
+		("(a* + 0)*", True),
+		("(0 + e+a)*", True),
+		("0 + a+aa*", False),
+		("a0a+aaa*", False),
+		("a        0                           a +aaa                                 *", False),
+
+
+		("0", False),
+		("0+0", False),
+		("0+e", False),
+		("e+0", False),
+		("0*", False),
+		("(0)*", False),
+		("0a", False),
+		("a0", False),
+		("0+a", False),
+		("a+0", False),
+		("0+a*", True),
+		("a*+0", True),
+		("(0+a)*", True),
+		("(0a)*", False),
+		("(a0)*", False),
+		("0e", False),
+		("e0", False),
+		("0+aa*", False),
+		("(0+aa*)*", True),
+		("0+0*", False),
+		("(0+e)*", False),
+		("0(a+e)*", False),
+		("(a+e)*0", False),
 	]
 )
 def test_checkreg(input_, expected):
 	result = checkreg(input_)
-	assert result == expected
+	assert expected == result
 

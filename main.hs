@@ -8,7 +8,7 @@
 import System.Environment (getArgs)
 import Debug.Trace
 
-data RegularExpression = Character | NullCharacter | Star {argument :: RegularExpression} | Plus {first_argument :: RegularExpression, second_argument :: RegularExpression} | Composition {arguments :: [RegularExpression]} | Unparsed {unparsed :: String} deriving Show
+data RegularExpression = Character | NullCharacter | NullSet | Star {argument :: RegularExpression} | Plus {first_argument :: RegularExpression, second_argument :: RegularExpression} | Composition {arguments :: [RegularExpression]} | Unparsed {unparsed :: String} deriving Show
 
 _sub_sums :: Num a => [a] -> a -> [a]
 _sub_sums (x:xs) old_sum = new_sum : (_sub_sums xs new_sum)
@@ -53,7 +53,7 @@ parse_brackets _ = error "Run parse_brackets on a parsed token"
 parse_characters :: RegularExpression -> [RegularExpression]
 parse_characters (Unparsed to_parse) = results
 	where
-		character_positions = map (\x -> if (x == 'a' || x == 'e') then True else False) to_parse
+		character_positions = map (\x -> if (x == 'a' || x == 'e' || x == '0') then True else False) to_parse
 		change_points = filter (\x -> 
 						(character_positions !! x && not (character_positions !! (x - 1))) || 
 						(not (character_positions !! x)  && character_positions !! (x - 1))
@@ -62,8 +62,8 @@ parse_characters (Unparsed to_parse) = results
 		results = 
 			foldl (\x y -> x ++ y) [] $
 			map (\x -> 
-				if x !! 0 == 'a' || x !! 0 == 'e' then
-					map (\y -> if y == 'a' then Character else NullCharacter) x
+				if x !! 0 == 'a' || x !! 0 == 'e' || x !! 0 == '0' then
+					map (\y -> if y == 'a' then Character else (if y == 'e' then NullCharacter else NullSet)) x
 				else
 					[Unparsed x]
 			)
@@ -94,16 +94,12 @@ parse_pluses (x:(Unparsed "+"):y:xs) = parse_pluses $ (Plus x y) : xs
 parse_pluses (x:xs) = x : parse_pluses xs
 parse_pluses [] = []
 
--- I assume there are only two operators * and + and no characters beside e and a
-split_operators :: RegularExpression -> [RegularExpression]
+-- I assume that all symbols are one character wide
+split_operators :: RegularExpression -> [RegularExpression] 
 split_operators (Unparsed payload) = map Unparsed $ split_at payload [0 .. length payload]
 
 compose :: [RegularExpression] -> [RegularExpression]
 compose ((Composition first):(Composition second):xs) = compose $ Composition (first ++ second) : xs
---compose ((Composition composed):(NullCharacter):xs) = compose $ Composition composed : xs
---compose ((NullCharacter):(Composition composed):xs) = compose $ Composition composed : xs
---compose ((Character):(NullCharacter):xs) =  compose $ Character : xs
---compose ((NullCharacter):(Character):xs) = compose $ Character : xs
 compose ((NullCharacter):(NullCharacter):xs) = compose $ NullCharacter : xs
 compose (x:unparsed@(Unparsed _):xs) = x : unparsed : compose xs
 compose (unprased@(Unparsed _):xs) = unprased : compose xs
@@ -118,7 +114,7 @@ parse :: RegularExpression-> RegularExpression
 parse (Unparsed string_to_parse) 
 	| length result == 1 = head result
 	| length result == 0 = error "Empty expression"
-	| otherwise = error "Error, parsed to many tokens"
+	| otherwise = error "Error, parsed too many tokens"
 	where
 		result =
 			parse_pluses
@@ -151,6 +147,7 @@ regular_expression_to_finite_state_machine regular_expression = α_closure $ ε_
 count_states :: RegularExpression -> Int
 count_states Character = 1
 count_states NullCharacter = 1
+count_states NullSet = 1
 count_states (Plus first second) = 1 + count_states first + count_states second
 count_states (Star argument) = 1 + count_states argument;
 count_states (Composition arguments) = foldl (\x y -> x + count_states y) 0 arguments
@@ -159,6 +156,7 @@ count_states (Unparsed _) = error "Encountered an unparsed token"
 converter_helper :: RegularExpression -> Int -> Int -> FiniteStateMachine
 converter_helper Character end_state shift = [State [] [end_state]]
 converter_helper NullCharacter end_state shift = [State [end_state] []]
+converter_helper NullSet end_state shift = [State [] []]
 converter_helper (Plus first_argument second_argument) end_state shift = [State [shift + 1, shift + 1 + first_argument_size] []] ++ converter_helper first_argument end_state (shift + 1) ++ converter_helper second_argument end_state (shift + 1 + first_argument_size)
 	where
 		first_argument_size = count_states first_argument
